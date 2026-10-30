@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuentes de generación eléctrica</title>
+<meta name="description" content="Gráfico UpSet de las combinaciones de fuentes con las que cada país genera su electricidad en 2024.">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  #upset { width: 100%; min-height: 540px; overflow-x: auto; }
+  #upset svg text { font-family: var(--font) !important; }
+  .panel { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: var(--page); border: 1px solid var(--border); font-size: 13px; min-height: 64px; }
+  .panel b { font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+  .chip { padding: 2px 8px; border-radius: 999px; background: var(--surface-1); border: 1px solid var(--border); color: var(--text-primary); white-space: nowrap; }
+  .chip.hl { background: var(--accent); color: #fff; border-color: transparent; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="../">PEC2 · Visualización de datos</a> / Técnica III</div>
+  <p class="kicker">Técnica III · UpSet</p>
+  <h1>Fuentes de generación eléctrica por país, 2024</h1>
+  <p class="lede">Un país forma parte del conjunto de una fuente cuando esa fuente aporta al menos el 5&nbsp;% de su electricidad. Las barras horizontales indican cuántos países usan cada fuente; las columnas, cuántos comparten exactamente la misma combinación, marcada con puntos en la matriz. Haz clic en una columna o en una fuente para ver qué países incluye.</p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="card">
+    <div class="controls">
+      <span>Combinaciones</span>
+      <div class="seg" role="group" aria-label="Número de combinaciones">
+        <button id="b-top" aria-pressed="true">Las 25 más frecuentes</button>
+        <button id="b-all" aria-pressed="false">Todas</button>
+      </div>
+      <span>Ordenar por</span>
+      <div class="seg" role="group" aria-label="Orden">
+        <button id="o-card" aria-pressed="true">N.º de países</button>
+        <button id="o-deg" aria-pressed="false">N.º de fuentes</button>
+      </div>
+      <label for="q">Localizar país</label>
+      <select id="q"><option value="">Elige un país</option></select>
+    </div>
+    <div id="upset" role="img" aria-label="Gráfico UpSet de combinaciones de fuentes eléctricas por país"></div>
+    <div class="panel" id="panel"></div>
+  </div>
+
+  <div class="grid2">
+    <div class="note">
+      <h2>Descripción</h2>
+      <p id="desc1"></p>
+      <p id="desc2"></p>
+    </div>
+    <div class="note">
+      <h2>Datos y metodología</h2>
+      <h3>Fuente</h3>
+      <p><a href="https://github.com/owid/energy-data">Our World in Data, Energy dataset</a>, a partir de Ember y del Energy Institute. Porcentaje que aporta cada fuente a la generación eléctrica de cada país en 2024. Licencia CC BY 4.0.</p>
+      <h3>Tratamiento</h3>
+      <p id="trat"></p>
+      <h3>Limitaciones</h3>
+      <p id="lim"></p>
+    </div>
+  </div>
+  <footer>PEC2 · Visualización de datos (UOC) · Harold Yesid Garavito Reyes · Elaboración propia con UpSet.js (Lex, Gehlenborg et al.)</footer>
+</div>
+
+<script src="../assets/vendor/upsetjs.min.js"></script>
+<script>
+(async function () {
+  const elems = await (await fetch("mix.json")).json();
+  const ORDER = ["Carbón", "Gas", "Petróleo", "Nuclear", "Hidráulica", "Eólica", "Solar", "Bioenergía", "Otras renovables"];
+  const sets = UpSetJS.extractSets(elems, (e) => e.sets).sort((a, b) => a.cardinality - b.cardinality); // UpSet.js dibuja de abajo arriba: la mayor queda arriba
+  const allCombos = (order) => UpSetJS.generateCombinations(sets, { type: "distinctIntersection", min: 1, order });
+  const nCombos = allCombos("cardinality:desc").length;
+
+  // --- cifras destacadas y textos, calculados a partir de los datos
+  const posibles = 2 ** ORDER.length - 1;
+  const maxDeg = Math.max(...elems.map((e) => e.sets.length));
+  const single = elems.filter((e) => e.sets.length === 1).length;
+  const top = elems.filter((e) => e.sets.length === maxDeg);
+  const nums = ["", "una", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"];
+  document.getElementById("stats").innerHTML = `
+    <div><span class="stat">${elems.length}</span>países y territorios analizados</div>
+    <div><span class="stat">${nCombos}</span>combinaciones distintas, de las ${posibles} posibles</div>
+    <div><span class="stat">${single}</span>generan su electricidad con una sola fuente</div>
+    <div><span class="stat">${top.length}</span>combinan ${nums[maxDeg]} fuentes, el máximo observado</div>`;
+  const combo = (list) => elems.filter((e) => e.sets.length === list.length && list.every((x) => e.sets.includes(x)));
+  const ps = combo(["Petróleo", "Solar"]), po = combo(["Petróleo"]), gh = combo(["Gas", "Hidráulica"]);
+  const nuc = elems.filter((e) => e.sets.includes("Nuclear"));
+  const esp = elems.find((e) => e.iso === "ESP");
+  const lista = (a) => a.length > 1 ? a.slice(0, -1).join(", ") + " y " + a[a.length - 1] : a[0];
+  document.getElementById("desc1").innerHTML =
+    `La combinación más frecuente es petróleo y solar (${ps.length} países): sobre todo islas, como Maldivas, Barbados o Tonga, ` +
+    `y países con redes eléctricas frágiles, como Yemen o Somalia, que combinan generadores de petróleo con energía solar. ` +
+    `Le siguen los que dependen solo del petróleo (${po.length}), en su mayoría islas del Caribe, y los que combinan gas e hidráulica (${gh.length}).`;
+  document.getElementById("desc2").innerHTML =
+    `La nuclear nunca aparece sola: en ${nuc.filter((e) => e.sets.length >= 4).length} de los ${nuc.length} países que la usan forma parte de mixes de cuatro fuentes o más. ` +
+    `Los mixes más diversificados reúnen ${nums[maxDeg]} fuentes y solo se dan en ${top.length} países, entre ellos Estados Unidos, Chile y Grecia. ` +
+    `España combina ${nums[esp.sets.length]}: ${lista(esp.sets.map((x) => x.toLowerCase()))}.`;
+  document.getElementById("trat").innerHTML =
+    `Se conservan los ${elems.length} países y territorios con datos completos. Cada porcentaje se convierte en pertenencia sí/no con un umbral del 5&nbsp;%. ` +
+    `Cada columna es una intersección exclusiva: los países de «Gas + Hidráulica» usan esas dos fuentes y ninguna otra por encima del umbral. ` +
+    `«Otras renovables» agrupa la geotérmica y la mareomotriz.`;
+  const big = elems.reduce((a, b) => ((b.twh || 0) > (a.twh || 0) ? b : a));
+  document.getElementById("lim").innerHTML =
+    `El umbral es una decisión del análisis: con un 10&nbsp;% cambian las combinaciones. Todos los países cuentan igual, sea cual sea su tamaño: ` +
+    `${big.name}, con más de ${(Math.floor(big.twh / 1000) * 1000).toLocaleString("es-ES")}&nbsp;TWh, pesa lo mismo que Montserrat. ` +
+    `Con ${ORDER.length} fuentes hay ${posibles} combinaciones posibles, imposibles de leer en un diagrama de Venn; por eso se usa UpSet.`;
+
+  // Escala lineal con marcas "redondas" y separadas al menos 45 px (evita que se amontonen las etiquetas del eje)
+  const niceScale = (max, range) => {
+    const [r0, r1] = range, len = Math.abs(r1 - r0);
+    const f = (v) => r0 + (v / max) * (r1 - r0);
+    const raw = max / Math.max(2, Math.floor(len / 45)), p10 = 10 ** Math.floor(Math.log10(raw)), m = raw / p10;
+    const step = (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p10;
+    f.ticks = () => d3range(0, max, step).map((v) => ({ value: v, label: String(v) }));
+    f.tickFormat = () => (v) => String(v);
+    return f;
+  };
+  const d3range = (a, b, st) => { const out = []; for (let v = a; v <= b + 1e-9; v += st) out.push(+v.toFixed(6)); return out; };
+  const css = getComputedStyle(document.documentElement);
+  const v = (n) => css.getPropertyValue(n).trim();
+  const state = { limit: 25, order: ["cardinality:desc", "degree:asc"], selection: null, query: "" };
+  const node = document.getElementById("upset"), panel = document.getElementById("panel");
+
+  function describe(sel) {
+    if (!sel) return `<span style="color:var(--text-secondary)">Haz clic en una columna o en una fuente para ver qué países incluye.</span>`;
+    const list = [...sel.elems].sort((a, b) => a.name.localeCompare(b.name, "es"));
+    const label = sel.type === "set" ? `Fuente: ${sel.name}` : sel.sets.size ? [...sel.sets].map((s) => s.name).join(" + ") : sel.name;
+    const n = `${list.length} ${list.length === 1 ? "país" : "países"}`;
+    return `<b>${label}</b> · ${sel.type === "set" ? `${n} obtienen de esta fuente al menos el 5\u00a0% de su electricidad` : `${n} ${list.length === 1 ? "usa" : "usan"} exactamente estas fuentes`}
+      <div class="chips">${list.map((e) => `<span class="chip${e.name === state.query ? " hl" : ""}">${e.name}</span>`).join("")}</div>`;
+  }
+  function draw() {
+    const combos = UpSetJS.generateCombinations(sets, { type: "distinctIntersection", min: 1, order: state.order, limit: state.limit || undefined });
+    const q = state.query ? elems.filter((e) => e.name === state.query) : [];
+    const w = Math.max(node.clientWidth, state.limit ? 760 : 1500);
+    UpSetJS.render(node, {
+      sets, combinations: combos, width: w, height: 540,
+      selection: state.selection,
+      onClick: (s) => { state.selection = s; draw(); },
+      onHover: (s) => { panel.innerHTML = describe(s || state.selection); },
+      queries: q.length ? [{ name: state.query, color: v("--text-primary") || "#0b0b0b", elems: q }] : [],
+      theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+      color: v("--accent"), selectionColor: v("--accent-strong"), hasSelectionColor: v("--accent-soft"),
+      textColor: v("--text-primary"), hoverHintColor: v("--accent-soft"), notMemberColor: v("--grid"),
+      alternatingBackgroundColor: v("--page"), backgroundColor: "transparent",
+      setName: "Países que usan cada fuente", combinationName: "Países con esta combinación",
+      barLabelOffset: 4, exportButtons: false, fontFamily: v("--font"),
+      fontSizes: { setLabel: "13px", axisTick: "11px", barLabel: "10px", chartLabel: "12px", legend: "12px" },
+      widthRatios: [0.24, 0.12], heightRatios: [0.58], numericScale: niceScale,
+    });
+    panel.innerHTML = describe(state.selection);
+  }
+
+  const press = (on, off) => { document.getElementById(on).setAttribute("aria-pressed", "true"); document.getElementById(off).setAttribute("aria-pressed", "false"); };
+  document.getElementById("b-top").onclick = () => { state.limit = 25; press("b-top", "b-all"); draw(); };
+  document.getElementById("b-all").onclick = () => { state.limit = 0; press("b-all", "b-top"); draw(); };
+  document.getElementById("o-card").onclick = () => { state.order = ["cardinality:desc", "degree:asc"]; press("o-card", "o-deg"); draw(); };
+  document.getElementById("o-deg").onclick = () => { state.order = ["degree:asc", "cardinality:desc"]; press("o-deg", "o-card"); draw(); };
+  const sel = document.getElementById("q");
+  [...elems].sort((a, b) => a.name.localeCompare(b.name, "es")).forEach((e) => sel.add(new Option(e.name, e.name)));
+  sel.onchange = () => {
+    state.query = sel.value;
+    const e = elems.find((x) => x.name === sel.value);
+    // selecciona su intersección exacta para ver con quién la comparte
+    state.selection = e ? UpSetJS.generateCombinations(sets, { type: "distinctIntersection", min: 1 }).find((c) => c.elems.includes(e)) : null;
+    // si su combinación no está entre las 25 más frecuentes, se muestran todas
+    if (state.selection && state.limit) {
+      const top = UpSetJS.generateCombinations(sets, { type: "distinctIntersection", min: 1, order: state.order, limit: state.limit });
+      if (!top.some((c) => c.name === state.selection.name)) { state.limit = 0; press("b-all", "b-top"); }
+    }
+    draw();
+  };
+  let t; addEventListener("resize", () => { clearTimeout(t); t = setTimeout(draw, 150); });
+  draw();
+})();
+</script>
+</body>
+</html>

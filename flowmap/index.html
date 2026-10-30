@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Importaciones de gas natural de la UE</title>
+<meta name="description" content="Mapa de flujos de las importaciones de gas natural de los Estados miembro de la UE por país de origen en 2024.">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  #map { width: 100%; height: auto; display: block; }
+  .land { fill: var(--land); stroke: var(--land-stroke); stroke-width: .5; }
+  .land.eu { fill: var(--accent-soft); }
+  .land.nd { fill: url(#hatch); }
+  .flow { fill: none; stroke: var(--accent); stroke-linecap: butt; opacity: .82; transition: opacity .2s; }
+  .halo { fill: none; stroke: var(--surface-1); opacity: .9; transition: opacity .2s; }
+  .head { fill: var(--accent); opacity: .82; stroke: var(--surface-1); stroke-width: 1; transition: opacity .2s; }
+  .hit { fill: none; stroke: transparent; cursor: pointer; }
+  .dim .flow, .dim .head { opacity: .08; }
+  .dim .halo { opacity: 0; }
+  .dim .on .flow, .dim .on .head { opacity: .95; }
+  .dim .on .halo { opacity: .9; }
+  .node-o { fill: var(--text-primary); stroke: var(--surface-1); stroke-width: 1.5; cursor: pointer; }
+  .node-d { fill: var(--surface-1); stroke: var(--accent-strong); stroke-width: 1.5; cursor: pointer; }
+  .lbl { font-size: 11.5px; fill: var(--text-primary); paint-order: stroke; stroke: var(--surface-1); stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; }
+  .lbl.o { font-weight: 600; }
+  .lbl .v { font-weight: 400; fill: var(--text-secondary); }
+  .lbl.d { font-size: 10.5px; fill: var(--text-secondary); }
+  .wleg { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: -1px; margin-right: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="../">PEC2 · Visualización de datos</a> / Técnica II</div>
+  <p class="kicker">Técnica II · Flow Map</p>
+  <h1>Importaciones de gas natural de la UE por país de origen, 2024</h1>
+  <p class="lede">Cada flecha une un país proveedor de fuera de la Unión con el Estado miembro que recibe el gas. Su grosor es proporcional al volumen importado en 2024, medido en bcm (miles de millones de metros cúbicos). Pasa el ratón por una flecha o por un país para ver sus datos, o elige un país en el desplegable.</p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="card">
+    <div class="controls">
+      <label for="sel">Destacar país</label>
+      <select id="sel"><option value="">Todos los flujos</option></select>
+    </div>
+    <p class="hint">Desliza el mapa en horizontal para verlo completo.</p>
+    <div class="scroll"><svg id="map" role="img" aria-label="Mapa de flujos de las importaciones de gas natural de la UE por país de origen en 2024"></svg></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="grid2">
+    <div class="note">
+      <h2>Descripción</h2>
+      <p id="desc1"></p>
+      <p id="desc2"></p>
+    </div>
+    <div class="note">
+      <h2>Datos y metodología</h2>
+      <h3>Fuente</h3>
+      <p><a href="https://ec.europa.eu/eurostat/databrowser/view/nrg_ti_gas/default/table?lang=en">Eurostat, tabla nrg_ti_gas</a> (importaciones de gas natural por país de origen), año 2024, en millones de metros cúbicos (Mm³). 1&nbsp;bcm equivale a 1.000&nbsp;Mm³.</p>
+      <h3>Tratamiento</h3>
+      <p id="trat"></p>
+      <h3>Diseño</h3>
+      <p>Sigue los principios de Jenny et al. (2018): el grosor es proporcional al volumen, las puntas de flecha indican la dirección (y se agrandan en los flujos finos), las curvas reducen los cruces y los flujos finos se dibujan encima de los gruesos. Cada país se sitúa en su capital y los proveedores lejanos, en el borde del mapa, en su dirección real.</p>
+      <h3>Limitaciones</h3>
+      <p id="lim"></p>
+    </div>
+  </div>
+
+  <details>
+    <summary>Ver la tabla con los <span id="nflows"></span> flujos</summary>
+    <table id="tbl"><thead><tr><th>Origen</th><th>Destino</th><th class="n">Mm³</th><th class="n">Peso en las importaciones extra-UE del destino</th></tr></thead><tbody></tbody></table>
+  </details>
+  <footer>PEC2 · Visualización de datos (UOC) · Harold Yesid Garavito Reyes · Elaboración propia con D3.js</footer>
+</div>
+<div class="tip" id="tip"></div>
+
+<script src="../assets/vendor/d3.min.js"></script>
+<script src="../assets/vendor/topojson-client.min.js"></script>
+<script>
+(async function () {
+  const [data, topo] = await Promise.all([d3.json("flows.json"), d3.json("../assets/countries-110m.json")]);
+  const F = data.flujos, T = data.total_extra_ue, PD = data.por_destino, po = data.por_origen;
+  // Formato español: punto de miles, coma decimal y espacio antes de % y de las unidades
+  const es = (s) => s.replace(/,/g, "·").replace(/\./g, ",").replace(/·/g, ".");
+  const bcm = (v, d = 1) => es(d3.format(`,.${d}f`)(v / 1000)) + " bcm";
+  const mm3 = (v) => es(d3.format(",.0f")(v)) + " Mm³";
+  const pct = (v) => (v < 0.01 ? "<1" : es(d3.format(".0f")(v * 100))) + " %";
+  const flow = (o, d) => F.find((x) => x.origen === o && x.destino === d).mm3;
+  const nDest = (o) => F.filter((x) => x.origen === o).length;
+
+  // --- cifras destacadas
+  document.getElementById("stats").innerHTML = `
+    <div><span class="stat">${bcm(T)}</span>importados desde fuera de la UE con país de origen identificado</div>
+    <div><span class="stat">${pct(po.NO / T)}</span>procede de Noruega, el primer proveedor</div>
+    <div><span class="stat">${pct(po.US / T)}</span>es gas natural licuado de Estados Unidos, el segundo</div>
+    <div><span class="stat">${pct(po.RU / T)}</span>procede todavía de Rusia</div>`;
+
+  // --- textos con cifras, generados desde los datos
+  document.getElementById("desc1").innerHTML =
+    `Noruega es el primer proveedor de la Unión (${pct(po.NO / T)}) y abastece sobre todo a Alemania, Francia y Países Bajos con los gasoductos del mar del Norte. ` +
+    `En el sur, Argelia cubre más del 40&nbsp;% del gas que Italia y España compran fuera de la UE: el ${pct(flow("DZ", "IT") / PD.IT)} y el ${pct(flow("DZ", "ES") / PD.ES)}, respectivamente.`;
+  document.getElementById("desc2").innerHTML =
+    `El gas natural licuado (GNL), que llega en barco, diversifica el suministro: Estados Unidos ya es el segundo proveedor y envía más de 1&nbsp;bcm a ${nDest("US")} Estados miembro. ` +
+    `Rusia aún aporta el ${pct(po.RU / T)}. A Hungría, Eslovaquia y Chequia, sin salida al mar, solo puede llegar por gasoducto; a Francia, España, Bélgica y Países Bajos llega como GNL.`;
+  document.getElementById("trat").innerHTML =
+    `Los Estados miembro importaron ${bcm(data.total_importado)}. Se descartan ${bcm(data.intra_ue)} que llegan desde otro país de la UE y ` +
+    `${bcm(data.sin_pais)} sin país de origen identificado. Del resto (${bcm(T)}), se dibujan los ${F.length} flujos de 1&nbsp;bcm o más, ` +
+    `que suman el ${pct(d3.sum(F, (f) => f.mm3) / T)}.`;
+  document.getElementById("lim").innerHTML =
+    `Al excluir el gas que circula entre países de la UE, Alemania aparece con menos del que recibe: otros 30&nbsp;bcm le llegan a través de Países Bajos y Bélgica. ` +
+    `Polonia solo declara regiones de origen («otros países europeos», «Oriente Próximo y Medio») y Austria no especifica el origen, por eso aparecen rayados y sin flechas. ` +
+    `Reino Unido y Turquía actúan en parte como países de tránsito.`;
+  document.getElementById("nflows").textContent = F.length;
+
+  // --- mapa base
+  const W = 960, H = 640, M = 26; // M = margen donde se sitúan los orígenes lejanos
+  const svg = d3.select("#map").attr("viewBox", `0 0 ${W} ${H}`);
+  // Lambert azimutal de áreas iguales centrada en Europa (la misma familia que ETRS89-LAEA, EPSG:3035)
+  const proj = d3.geoAzimuthalEqualArea().rotate([-12, -50]).fitExtent([[M, M], [W - M, H - M]],
+    { type: "MultiPoint", coordinates: [[-11, 36], [-9, 60], [38, 66], [40, 34], [8, 30]] });
+  const path = d3.geoPath(proj);
+  const defs = svg.append("defs");
+  const pat = defs.append("pattern").attr("id", "hatch").attr("width", 5).attr("height", 5)
+    .attr("patternUnits", "userSpaceOnUse").attr("patternTransform", "rotate(45)");
+  pat.append("rect").attr("width", 5).attr("height", 5).attr("fill", "var(--accent-soft)");
+  pat.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 5).attr("stroke", "var(--surface-1)").attr("stroke-width", 2);
+  svg.append("clipPath").attr("id", "clip").append("rect").attr("width", W).attr("height", H);
+  const EU_NUM = { "040": "AT", "056": "BE", "100": "BG", "191": "HR", "196": "CY", "203": "CZ", "208": "DK", "233": "EE", "246": "FI",
+    "250": "FR", "276": "DE", "300": "EL", "348": "HU", "372": "IE", "380": "IT", "428": "LV", "440": "LT", "442": "LU", "470": "MT",
+    "528": "NL", "616": "PL", "620": "PT", "642": "RO", "703": "SK", "705": "SI", "724": "ES", "752": "SE" };
+  const land = topojson.feature(topo, topo.objects.countries).features.filter((f) => f.id !== "010");
+  svg.append("g").attr("clip-path", "url(#clip)").selectAll("path").data(land).join("path")
+    .attr("class", (d) => "land" + (EU_NUM[d.id] ? (["PL", "AT"].includes(EU_NUM[d.id]) ? " eu nd" : " eu") : ""))
+    .attr("d", path);
+
+  // --- nodos
+  const nodes = new Map();
+  F.forEach((f) => {
+    for (const s of ["origen", "destino"]) {
+      const id = f[s];
+      if (!nodes.has(id)) nodes.set(id, { id, name: f[`${s}_nombre`], type: s, xy: proj([f[`${s}_lon`], f[`${s}_lat`]]) });
+    }
+  });
+  // Orígenes fuera del encuadre: se colocan en el borde, en la dirección real (rumbo desde el centro de Europa)
+  const C = proj([12, 50]), x0 = M, x1 = W - M, y0 = M, y1 = H - M;
+  for (const n of nodes.values()) {
+    const [px, py] = n.xy;
+    if (px >= x0 && px <= x1 && py >= y0 && py <= y1) continue;
+    const dx = px - C[0], dy = py - C[1];
+    const t = Math.min(...[dx > 0 ? (x1 - C[0]) / dx : dx < 0 ? (x0 - C[0]) / dx : Infinity, dy > 0 ? (y1 - C[1]) / dy : dy < 0 ? (y0 - C[1]) / dy : Infinity]);
+    n.xy = [C[0] + dx * t, C[1] + dy * t]; n.edge = true;
+  }
+  // separar nodos de borde que caen demasiado cerca (mín. 34 px)
+  const edges = [...nodes.values()].filter((n) => n.edge).sort((a, b) => a.xy[1] - b.xy[1]);
+  for (let i = 1; i < edges.length; i++) {
+    const a = edges[i - 1], b = edges[i];
+    if (Math.abs(a.xy[0] - b.xy[0]) < 5 && b.xy[1] - a.xy[1] < 34) b.xy = [b.xy[0], a.xy[1] + 34];
+  }
+  const nodeVal = (n) => (n.type === "origen" ? po[n.id] : PD[n.id]);
+  const rScale = d3.scaleSqrt().domain([0, d3.max([...nodes.values()], nodeVal)]).range([0, 9]);
+  const r = (n) => Math.max(3, rScale(nodeVal(n)));
+
+  // --- geometría de los flujos: curva cuadrática + punta de flecha
+  const wScale = d3.scaleLinear().domain([0, d3.max(F, (d) => d.mm3)]).range([0, 16]);
+  const width = (v) => Math.max(1.2, wScale(v));
+  const qpt = (p0, c, p1, t) => [0, 1].map((i) => (1 - t) ** 2 * p0[i] + 2 * (1 - t) * t * c[i] + t * t * p1[i]);
+  function geom(f) {
+    const a = nodes.get(f.origen), b = nodes.get(f.destino);
+    const [x0, y0] = a.xy, [x1, y1] = b.xy, dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy);
+    const k = 0.18; // curvatura: todos los flujos se curvan hacia el mismo lado (sentido horario)
+    const c = [(x0 + x1) / 2 + k * dy, (y0 + y1) / 2 - k * dx];
+    const w = width(f.mm3);
+    const headL = Math.max(7, w * 1.1 + 5), headW = Math.max(7, w * 1.6 + 4);
+    // t en el que la curva sale del círculo de origen / entra en el de destino (+ punta)
+    const tAt = (dist, fromEnd) => { let t = fromEnd ? 1 : 0; const step = 0.002 * (fromEnd ? -1 : 1);
+      const ref = fromEnd ? b.xy : a.xy; while (t > 0 && t < 1 && Math.hypot(...[0, 1].map((i) => qpt(a.xy, c, b.xy, t)[i] - ref[i])) < dist) t += step; return t; };
+    const t0 = tAt(r(a) + 1, false), tTip = tAt(r(b) + 1.5, true), t1 = tAt(r(b) + 1.5 + headL, true);
+    // sub-curva [t0, t1] por De Casteljau
+    const sub = (ta, tb) => { const p = qpt(a.xy, c, b.xy, ta), q = qpt(a.xy, c, b.xy, tb);
+      const cc = [0, 1].map((i) => { const d1 = 2 * (1 - ta) * (c[i] - a.xy[i]) + 2 * ta * (b.xy[i] - c[i]); return p[i] + d1 * (tb - ta) / 2; });
+      return `M${p}Q${cc} ${q}`; };
+    const tip = qpt(a.xy, c, b.xy, tTip), base = qpt(a.xy, c, b.xy, t1);
+    const ux = (tip[0] - base[0]) / headL, uy = (tip[1] - base[1]) / headL;
+    const head = `M${tip}L${base[0] - uy * headW / 2},${base[1] + ux * headW / 2}L${base[0] + uy * headW / 2},${base[1] - ux * headW / 2}Z`;
+    return { line: sub(t0, t1 + 0.004), head, w };
+  }
+
+  // flujos gruesos debajo, finos encima (Jenny et al.)
+  const g = svg.append("g").attr("class", "flows");
+  const fl = g.selectAll("g").data([...F].sort((a, b) => b.mm3 - a.mm3)).join("g")
+    .each(function (f) { f.g = geom(f); });
+  fl.append("path").attr("class", "halo").attr("d", (f) => f.g.line).attr("stroke-width", (f) => f.g.w + 2);
+  fl.append("path").attr("class", "flow").attr("d", (f) => f.g.line).attr("stroke-width", (f) => f.g.w);
+  fl.append("path").attr("class", "head").attr("d", (f) => f.g.head);
+  fl.append("path").attr("class", "hit").attr("d", (f) => f.g.line).attr("stroke-width", (f) => Math.max(10, f.g.w + 6));
+
+  // nodos y etiquetas
+  const gn = svg.append("g");
+  const nd = [...nodes.values()].sort((a, b) => nodeVal(b) - nodeVal(a));
+  gn.selectAll("circle").data(nd).join("circle").attr("class", (n) => (n.type === "origen" ? "node-o" : "node-d") + (n.edge ? " edge" : ""))
+    .attr("cx", (n) => n.xy[0]).attr("cy", (n) => n.xy[1]).attr("r", r);
+  const LBL = { NO: [-12, -6, "end"], UK: [-12, -4, "end"], RU: [0, -14, "middle"], TR: [0, 22, "middle"], AZ: [-12, 4, "end"],
+    DZ: [0, 22, "middle"], LY: [10, 4, "start"], NG: [0, -12, "middle"], QA: [2, -12, "end"], US: [-6, -13, "start"],
+    TT: [12, 4, "start"], PE: [12, 4, "start"] };
+  const lab = gn.selectAll("text.o").data(nd.filter((n) => n.type === "origen")).join("text").attr("class", "lbl o")
+    .attr("x", (n) => n.xy[0] + LBL[n.id][0]).attr("y", (n) => n.xy[1] + LBL[n.id][1]).attr("text-anchor", (n) => LBL[n.id][2]);
+  const arrow = (n) => (n.xy[0] <= M + 1 ? ["← ", ""] : n.xy[0] >= W - M - 1 ? ["", " →"] : n.xy[1] >= H - M - 1 ? ["", " ↓"] : ["", " ↑"]);
+  // la flecha de los proveedores fuera del mapa va delante (borde izquierdo) o detrás de la etiqueta (resto de bordes)
+  lab.append("tspan").text((n) => (n.edge ? arrow(n)[0] : "") + n.name);
+  lab.append("tspan").attr("class", "v").text((n) => " " + pct(po[n.id] / T));
+  lab.append("tspan").text((n) => (n.edge ? arrow(n)[1] : ""));
+  const DL = { ES: [-12, 4, "end"], IT: [-6, 18, "end"], DE: [12, -6, "start"], FR: [-12, 4, "end"], NL: [-10, -6, "end"], BE: [-10, 8, "end"],
+    PT: [-10, 4, "end"], EL: [-10, 14, "end"], HU: [8, 15, "start"], SK: [10, -8, "start"], CZ: [-2, -11, "middle"], BG: [10, 4, "start"],
+    HR: [-10, 12, "end"], DK: [10, -4, "start"], FI: [10, 4, "start"], LT: [10, 4, "start"], IE: [-10, 4, "end"] };
+  gn.selectAll("text.d").data(nd.filter((n) => DL[n.id])).join("text").attr("class", "lbl d")
+    .attr("x", (n) => n.xy[0] + DL[n.id][0]).attr("y", (n) => n.xy[1] + DL[n.id][1]).attr("text-anchor", (n) => DL[n.id][2]).text((n) => n.name);
+
+  // --- interacción
+  const tip = d3.select("#tip");
+  const showTip = (ev, html) => tip.style("opacity", 1).style("left", Math.min(ev.clientX + 14, innerWidth - 270) + "px").style("top", ev.clientY + 14 + "px").html(html);
+  const highlight = (id) => {
+    g.classed("dim", !!id);
+    fl.classed("on", (f) => id && (f.origen === id || f.destino === id));
+    document.getElementById("sel").value = id || "";
+  };
+  fl.on("pointermove", (ev, f) => {
+    g.classed("dim", true); fl.classed("on", (x) => x === f);
+    showTip(ev, `<b>${f.origen_nombre} → ${f.destino_nombre}</b><br>${bcm(f.mm3)} (${mm3(f.mm3)})<br><span class="muted">${pct(f.mm3 / PD[f.destino])} de lo que ${f.destino_nombre} importa de fuera de la UE</span>`);
+  }).on("pointerleave", () => { tip.style("opacity", 0); highlight(document.getElementById("sel").value); });
+  gn.selectAll("circle").on("pointermove", (ev, n) => {
+    highlight(n.id);
+    showTip(ev, n.type === "origen"
+      ? `<b>${n.name}</b> · proveedor<br>${bcm(po[n.id])} vendidos a la UE<br><span class="muted">${pct(po[n.id] / T)} de las importaciones extra-UE</span>`
+      : `<b>${n.name}</b> · Estado miembro<br>${bcm(PD[n.id])} importados de fuera de la UE`);
+  }).on("pointerleave", () => { tip.style("opacity", 0); highlight(document.getElementById("sel").value); });
+  const sel = d3.select("#sel");
+  sel.append("optgroup").attr("label", "Proveedores").selectAll("option").data(nd.filter((n) => n.type === "origen")).join("option").attr("value", (n) => n.id).text((n) => n.name);
+  sel.append("optgroup").attr("label", "Estados miembro").selectAll("option").data(nd.filter((n) => n.type === "destino").sort((a, b) => d3.ascending(a.name, b.name))).join("option").attr("value", (n) => n.id).text((n) => n.name);
+  sel.on("change", function () { highlight(this.value); });
+
+  // --- leyenda de grosores
+  const legW = [1000, 10000, 30000].map((v) => `<span class="wleg"><svg width="40" height="${Math.ceil(width(v)) + 4}" aria-hidden="true"><line x1="2" x2="38" y1="${(width(v) + 4) / 2}" y2="${(width(v) + 4) / 2}" stroke="var(--accent)" stroke-width="${width(v)}"/></svg>${bcm(v, 0)}</span>`).join("");
+  const arrows = [...new Set([...nodes.values()].filter((n) => n.edge).map((n) => arrow(n).join("").trim()))].join(" ");
+  document.getElementById("legend").innerHTML = `<span>Volumen:</span>${legW}
+    <span><i class="dot" style="background:var(--text-primary)"></i>proveedor</span>
+    <span><i class="dot" style="background:var(--surface-1);border:1.5px solid var(--accent-strong)"></i>Estado miembro</span>
+    <span>${arrows} proveedor fuera del mapa</span>
+    <span><i class="sw" style="background:repeating-linear-gradient(45deg,var(--accent-soft) 0 3px,var(--surface-1) 3px 5px)"></i>origen no desglosado</span>`;
+
+  // --- tabla
+  d3.select("#tbl tbody").selectAll("tr").data(F).join("tr").html((f) =>
+    `<td>${f.origen_nombre}</td><td>${f.destino_nombre}</td><td class="n">${es(d3.format(",.0f")(f.mm3))}</td><td class="n">${pct(f.mm3 / PD[f.destino])}</td>`);
+})();
+</script>
+</body>
+</html>

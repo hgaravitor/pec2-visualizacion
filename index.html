@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PEC2 · Visualización de datos</title>
+<meta name="description" content="Tres técnicas de visualización aplicadas a datos abiertos de energía: cartograma, flow map y UpSet.">
+<link rel="stylesheet" href="assets/base.css">
+<style>
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 22px; }
+  a.card { display: block; text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
+  a.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  a.card h2 { font-size: 18px; margin: 4px 0 6px; }
+  a.card p { margin: 0 0 10px; color: var(--text-secondary); font-size: 14px; }
+  .meta { font-size: 12px; color: var(--text-muted); }
+  .go { color: var(--accent); font-size: 14px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Máster en Ciencia de Datos · UOC · Visualización de datos</p>
+  <h1>Tres técnicas de visualización aplicadas a la energía</h1>
+  <p class="lede">PEC2 de Harold Yesid Garavito Reyes. Cada técnica se aplica a un conjunto de datos abiertos elegido por su estructura: totales por país para el cartograma, pares origen-destino para el flow map y pertenencia a conjuntos para UpSet.</p>
+  <div class="cards">
+    <a class="card" href="cartograma/">
+      <p class="kicker">Técnica I · Cartograma</p>
+      <h2>Emisiones de CO₂ por país, 2024</h2>
+      <p>El tamaño de cada país es proporcional a sus emisiones, y el color indica las emisiones por habitante.</p>
+      <p class="meta">Our World in Data · Global Carbon Project · 2024</p>
+      <span class="go">Abrir visualización →</span>
+    </a>
+    <a class="card" href="flowmap/">
+      <p class="kicker">Técnica II · Flow Map</p>
+      <h2>Importaciones de gas natural de la UE por país de origen, 2024</h2>
+      <p>Flujos de gas desde los países proveedores hasta cada Estado miembro, con un grosor proporcional al volumen.</p>
+      <p class="meta">Eurostat nrg_ti_gas · 2024</p>
+      <span class="go">Abrir visualización →</span>
+    </a>
+    <a class="card" href="upset/">
+      <p class="kicker">Técnica III · UpSet</p>
+      <h2>Fuentes de generación eléctrica por país, 2024</h2>
+      <p>Combinaciones de fuentes con las que cada país genera al menos el 5&nbsp;% de su electricidad.</p>
+      <p class="meta">Our World in Data · Ember · Energy Institute · 2024</p>
+      <span class="go">Abrir visualización →</span>
+    </a>
+  </div>
+  <footer>Los datos y el código de preparación están en el repositorio de GitHub, en las carpetas <code>data/</code> y <code>scripts/</code>. Librerías: D3.js, go-cart-wasm y UpSet.js.</footer>
+</div>
+</body>
+</html>

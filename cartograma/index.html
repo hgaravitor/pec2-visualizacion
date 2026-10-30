@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emisiones de CO₂ por país</title>
+<meta name="description" content="Cartograma de las emisiones de CO₂ por país en 2024: el área de cada país es proporcional a sus emisiones.">
+<link rel="stylesheet" href="../assets/base.css">
+<style>
+  #map { width: 100%; height: auto; display: block; }
+  .country { stroke: var(--land-stroke); stroke-width: .6; vector-effect: non-scaling-stroke; }
+  .country:hover { stroke: var(--text-primary); stroke-width: 1.4; }
+  .layer { transition: opacity .6s ease; }
+  .lbl { font-size: 11px; font-weight: 600; fill: var(--text-primary); paint-order: stroke; stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+  .lbl .v { font-weight: 400; fill: var(--text-secondary); }
+  .legend .grp { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+  .legend .ttl { color: var(--text-primary); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="../">PEC2 · Visualización de datos</a> / Técnica I</div>
+  <p class="kicker">Técnica I · Cartograma</p>
+  <h1>Emisiones de CO₂ por país, 2024</h1>
+  <p class="lede">En este cartograma, el tamaño de cada país no depende de su superficie, sino de las toneladas de CO₂ que emitió en 2024. El color indica cuánto emite cada habitante. Con el botón <em>Mapa real</em> puedes compararlo con el mapa convencional.</p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="card">
+    <div class="controls">
+      <span>Vista</span>
+      <div class="seg" role="group" aria-label="Vista del mapa">
+        <button id="b-cart" aria-pressed="true">Cartograma</button>
+        <button id="b-geo" aria-pressed="false">Mapa real</button>
+      </div>
+    </div>
+    <p class="hint">Desliza el mapa en horizontal para verlo completo.</p>
+    <div class="scroll"><svg id="map" role="img" aria-label="Cartograma de las emisiones de CO₂ por país en 2024"></svg></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="grid2">
+    <div class="note">
+      <h2>Descripción</h2>
+      <p id="desc1"></p>
+      <p id="desc2"></p>
+    </div>
+    <div class="note">
+      <h2>Datos y metodología</h2>
+      <h3>Fuente</h3>
+      <p><a href="https://github.com/owid/co2-data">Our World in Data, CO₂ and Greenhouse Gas Emissions</a>, a partir del Global Carbon Project. Emisiones de CO₂ de combustibles fósiles e industria en 2024, sin contar los cambios de uso del suelo, en millones de toneladas (Mt). Licencia CC BY 4.0.</p>
+      <h3>Método</h3>
+      <p>Cartograma contiguo calculado con el algoritmo de difusión de Gastner, Seguy y More (2018) sobre la proyección de igual área Equal Earth. Los países mantienen sus fronteras compartidas y su área se ajusta a sus emisiones con un error inferior al 1 %.</p>
+      <h3>Limitaciones</h3>
+      <p id="lim"></p>
+    </div>
+  </div>
+
+  <details>
+    <summary>Ver los 20 países que más emiten</summary>
+    <table id="tbl"><thead><tr><th>País</th><th class="n">CO₂ (Mt)</th><th class="n">% del total mundial</th><th class="n">t por habitante</th></tr></thead><tbody></tbody></table>
+  </details>
+  <footer>PEC2 · Visualización de datos (UOC) · Harold Yesid Garavito Reyes · Elaboración propia con D3.js y go-cart</footer>
+</div>
+<div class="tip" id="tip"></div>
+
+<script src="../assets/vendor/d3.min.js"></script>
+<script>
+(async function () {
+  const [geo, data] = await Promise.all([d3.json("geo.json"), d3.json("co2.json")]);
+  const co2 = data.paises, W = data.mundo;
+  // Formato español: punto de miles, coma decimal y espacio antes de %
+  const es = (s) => s.replace(/,/g, "·").replace(/\./g, ",").replace(/·/g, ".");
+  const n0 = (v) => es(d3.format(",.0f")(v)), n1 = (v) => es(d3.format(",.1f")(v));
+  const pct = (v) => (v < 0.001 ? "<0,1" : es(d3.format(".1f")(v * 100))) + "\u00a0%";
+
+  const sorted = Object.entries(co2).sort((a, b) => b[1][1] - a[1][1]);
+  const share = (isos) => d3.sum(isos, (i) => (co2[i] ? co2[i][1] : 0)) / W;
+  const EU27 = ["AUT","BEL","BGR","HRV","CYP","CZE","DNK","EST","FIN","FRA","DEU","GRC","HUN","IRL","ITA","LVA","LTU","LUX","MLT","NLD","POL","PRT","ROU","SVK","SVN","ESP","SWE"];
+  const top3 = share(["CHN", "USA", "IND"]);
+
+  // --- cifras destacadas (calculadas a partir de los datos)
+  document.getElementById("stats").innerHTML = `
+    <div><span class="stat">${n0(W)}&nbsp;Mt</span>de CO₂ emitidas en el mundo en 2024</div>
+    <div><span class="stat">${pct(top3)}</span>corresponde a China, Estados Unidos e India</div>
+    <div><span class="stat">${pct(share(EU27))}</span>corresponde a los 27 países de la Unión Europea</div>
+    <div><span class="stat">${pct(data.africa / W)}</span>corresponde a toda África, con ${n0(data.africa_pob / 1e6)} millones de habitantes</div>`;
+
+  // --- textos que citan cifras: se generan desde los datos para que no queden desfasados
+  const pc = (i) => n1(co2[i][2]);
+  document.getElementById("desc1").innerHTML =
+    `China, Estados Unidos e India suman más de la mitad de las emisiones (${pct(top3)}) y ocupan buena parte del mapa. ` +
+    `En cambio, Canadá, Brasil y Australia, que están entre los países más extensos del mundo, se quedan en una fracción de su tamaño real. ` +
+    `África ocupa una quinta parte de la tierra firme, pero emite el ${pct(data.africa / W)} del total.`;
+  document.getElementById("desc2").innerHTML =
+    `El color añade la visión por habitante. India aparece grande porque tiene mucha población, pero cada habitante emite ${pc("IND")}&nbsp;t, ` +
+    `menos de la mitad de la media mundial (${n1(data.mundo_por_hab)}&nbsp;t). Arabia Saudí, en cambio, ocupa poco espacio, pero cada habitante emite ${pc("SAU")}&nbsp;t. ` +
+    `En Estados Unidos la cifra es de ${pc("USA")}&nbsp;t y en China, de ${pc("CHN")}&nbsp;t.`;
+  const drawn = new Set(geo.f.map((f) => f.p.iso3));
+  const hidden = Object.keys(co2).filter((i) => !drawn.has(i));
+  const nodata = geo.f.filter((f) => f.p.co2 == null).map((f) => f.p.name);
+  document.getElementById("lim").innerHTML =
+    `El mapa base (Natural Earth, escala 1:110 millones) no incluye ${hidden.length} países y territorios pequeños, como Singapur, Hong Kong o Baréin, ` +
+    `que suman el ${pct(share(hidden))} de las emisiones. Los porcentajes se calculan sobre el total mundial, que incluye ${n0(data.transporte_internacional)}&nbsp;Mt ` +
+    `de aviación y transporte marítimo internacionales sin país asignado. No hay dato para ${nodata.join(", ").replace(/, ([^,]*)$/, " y $1")}.`;
+
+  // --- escala de color: CO₂ por habitante (secuencial, un solo tono)
+  const bins = [1, 3, 6, 10];
+  const seqVars = ["--seq-1", "--seq-2", "--seq-3", "--seq-4", "--seq-5"];
+  const color = (v) => (v == null ? "var(--nodata)" : `var(${seqVars[d3.bisectRight(bins, v)]})`);
+  const lab = ["menos de 1", "1–3", "3–6", "6–10", "10 o más"];
+  document.getElementById("legend").innerHTML =
+    `<span class="grp"><span class="ttl">Área:</span> emisiones totales del país</span>
+     <span class="grp"><span class="ttl">Color:</span> toneladas de CO₂ por habitante
+     ${lab.map((l, i) => `<span><i class="sw" style="background:var(${seqVars[i]})"></i>${l}</span>`).join("")}
+     <span><i class="sw" style="background:var(--nodata)"></i>sin dato</span></span>`;
+
+  // --- dibujo: coordenadas ya proyectadas (Equal Earth), eje y hacia arriba
+  const svg = d3.select("#map").attr("viewBox", `0 0 ${geo.w} ${geo.h}`);
+  const proj = d3.geoIdentity().reflectY(true).fitExtent([[4, 4], [geo.w - 4, geo.h - 4]],
+    { type: "FeatureCollection", features: geo.f.map((f) => ({ type: "Feature", geometry: f.o })) });
+  const path = d3.geoPath(proj);
+  const layers = { c: svg.append("g").attr("class", "layer"), o: svg.append("g").attr("class", "layer").style("opacity", 0) };
+  const tip = d3.select("#tip");
+  for (const k of ["c", "o"]) {
+    layers[k].selectAll("path").data(geo.f).join("path")
+      .attr("class", "country").attr("d", (d) => path(d[k])).attr("fill", (d) => color(d.p.co2pc))
+      .on("pointermove", (ev, d) => {
+        const p = d.p;
+        tip.style("opacity", 1).style("left", Math.min(ev.clientX + 14, innerWidth - 270) + "px").style("top", ev.clientY + 14 + "px")
+          .html(p.co2 == null ? `<b>${p.name}</b><br><span class="muted">Sin dato de emisiones</span>` :
+            `<b>${p.name}</b><br>${n1(p.co2)} Mt de CO₂ · ${pct(p.co2 / W)} del total mundial<br><span class="muted">${p.co2pc == null ? "" : n1(p.co2pc) + " t por habitante"}</span>`);
+      })
+      .on("pointerleave", () => tip.style("opacity", 0));
+  }
+
+  // --- etiquetas directas: los mayores emisores (Corea del Sur se omite porque se solapa con Japón)
+  const topIso = new Set(sorted.slice(0, 10).map((d) => d[0]).filter((i) => i !== "KOR"));
+  const labelPoint = (g) => { // punto interior más alejado del borde del polígono mayor
+    const polys = (g.type === "Polygon" ? [g.coordinates] : g.coordinates).map((pl) => pl[0].map((c) => proj(c)));
+    const ring = polys.reduce((a, b) => (Math.abs(d3.polygonArea(b)) > Math.abs(d3.polygonArea(a)) ? b : a));
+    const [x0, x1] = d3.extent(ring, (p) => p[0]), [y0, y1] = d3.extent(ring, (p) => p[1]);
+    let best = d3.polygonCentroid(ring), bestD = -1;
+    for (let i = 0; i <= 40; i++) for (let j = 0; j <= 40; j++) {
+      const pt = [x0 + (x1 - x0) * i / 40, y0 + (y1 - y0) * j / 40];
+      if (!d3.polygonContains(ring, pt)) continue;
+      const dmin = d3.min(ring, (q) => Math.hypot(q[0] - pt[0], q[1] - pt[1]));
+      if (dmin > bestD) { bestD = dmin; best = pt; }
+    }
+    return best;
+  };
+  const lbl = layers.c.append("g");
+  geo.f.filter((f) => topIso.has(f.p.iso3)).forEach((f) => {
+    const [x, y] = labelPoint(f.c);
+    const t = lbl.append("text").attr("class", "lbl").attr("text-anchor", "middle").attr("x", x).attr("y", y);
+    t.append("tspan").text(f.p.name);
+    t.append("tspan").attr("class", "v").attr("x", x).attr("dy", 12).text(pct(f.p.co2 / W));
+  });
+
+  // --- conmutador cartograma / mapa real
+  const setView = (k) => {
+    layers.c.style("opacity", k === "c" ? 1 : 0).style("pointer-events", k === "c" ? null : "none");
+    layers.o.style("opacity", k === "o" ? 1 : 0).style("pointer-events", k === "o" ? null : "none");
+    d3.select("#b-cart").attr("aria-pressed", k === "c"); d3.select("#b-geo").attr("aria-pressed", k === "o");
+  };
+  d3.select("#b-cart").on("click", () => setView("c"));
+  d3.select("#b-geo").on("click", () => setView("o"));
+  setView("c");
+
+  // --- tabla
+  d3.select("#tbl tbody").selectAll("tr").data(sorted.slice(0, 20)).join("tr").html(([iso, [name, v, p]]) =>
+    `<td>${name}</td><td class="n">${n0(v)}</td><td class="n">${pct(v / W)}</td><td class="n">${p == null ? "–" : n1(p)}</td>`);
+})();
+</script>
+</body>
+</html>

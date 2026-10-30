@@ -1,0 +1,45 @@
+origen,destino,mm3,origen_nombre,origen_lat,origen_lon,destino_nombre,destino_lat,destino_lon
+NO,DE,33496.193,Noruega,59.91,10.75,Alemania,52.52,13.4
+DZ,IT,23267.307,Argelia,36.75,3.06,Italia,41.9,12.5
+NO,FR,16629.419,Noruega,59.91,10.75,Francia,48.86,2.35
+US,NL,14500.124,Estados Unidos,38.9,-77.04,Países Bajos,52.37,4.9
+DZ,ES,11669.922,Argelia,36.75,3.06,España,40.42,-3.7
+AZ,IT,10313.92,Azerbaiyán,40.41,49.87,Italia,41.9,12.5
+NO,NL,9265.477,Noruega,59.91,10.75,Países Bajos,52.37,4.9
+US,FR,8637.289,Estados Unidos,38.9,-77.04,Francia,48.86,2.35
+NO,DK,8312.389,Noruega,59.91,10.75,Dinamarca,55.68,12.57
+RU,FR,7406.35,Rusia,55.76,37.62,Francia,48.86,2.35
+QA,IT,6902.054,Catar,25.29,51.53,Italia,41.9,12.5
+RU,ES,6436.165,Rusia,55.76,37.62,España,40.42,-3.7
+NO,BE,6293.9,Noruega,59.91,10.75,Bélgica,50.85,4.35
+RU,IT,5696.153,Rusia,55.76,37.62,Italia,41.9,12.5
+US,IT,5186.831,Estados Unidos,38.9,-77.04,Italia,41.9,12.5
+US,ES,5060.908,Estados Unidos,38.9,-77.04,España,40.42,-3.7
+US,DE,4647.278,Estados Unidos,38.9,-77.04,Alemania,52.52,13.4
+DZ,FR,4398.964,Argelia,36.75,3.06,Francia,48.86,2.35
+RU,HU,4064.0,Rusia,55.76,37.62,Hungría,47.5,19.04
+UK,IE,3998.8,Reino Unido,51.51,-0.13,Irlanda,53.35,-6.26
+NO,CZ,3891.053,Noruega,59.91,10.75,Chequia,50.08,14.44
+NO,IT,3603.134,Noruega,59.91,10.75,Italia,41.9,12.5
+RU,BE,3444.7,Rusia,55.76,37.62,Bélgica,50.85,4.35
+RU,EL,3339.778,Rusia,55.76,37.62,Grecia,37.98,23.73
+RU,SK,3089.0,Rusia,55.76,37.62,Eslovaquia,48.15,17.11
+QA,BE,2761.9,Catar,25.29,51.53,Bélgica,50.85,4.35
+NG,ES,2165.712,Nigeria,9.08,7.4,España,40.42,-3.7
+RU,NL,2127.053,Rusia,55.76,37.62,Países Bajos,52.37,4.9
+NG,PT,1869.104,Nigeria,9.08,7.4,Portugal,38.72,-9.14
+UK,NL,1829.531,Reino Unido,51.51,-0.13,Países Bajos,52.37,4.9
+RU,CZ,1791.029,Rusia,55.76,37.62,Chequia,50.08,14.44
+US,HR,1530.6,Estados Unidos,38.9,-77.04,Croacia,45.81,15.98
+US,EL,1507.849,Estados Unidos,38.9,-77.04,Grecia,37.98,23.73
+US,PT,1447.29,Estados Unidos,38.9,-77.04,Portugal,38.72,-9.14
+LY,IT,1406.857,Libia,32.89,13.19,Italia,41.9,12.5
+NO,FI,1321.0,Noruega,59.91,10.75,Finlandia,60.17,24.94
+US,BE,1261.1,Estados Unidos,38.9,-77.04,Bélgica,50.85,4.35
+UK,BE,1203.9,Reino Unido,51.51,-0.13,Bélgica,50.85,4.35
+PE,NL,1183.264,Perú,-12.05,-77.04,Países Bajos,52.37,4.9
+US,LT,1121.6,Estados Unidos,38.9,-77.04,Lituania,54.69,25.28
+TR,BG,1095.005,Turquía,39.93,32.86,Bulgaria,42.7,23.32
+AZ,EL,1093.362,Azerbaiyán,40.41,49.87,Grecia,37.98,23.73
+TT,NL,1024.246,Trinidad y Tobago,10.66,-61.51,Países Bajos,52.37,4.9
+QA,ES,1003.407,Catar,25.29,51.53,España,40.42,-3.7

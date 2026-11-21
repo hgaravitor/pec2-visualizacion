@@ -27,15 +27,6 @@ node scripts/build_cartogram.mjs   # calcula el cartograma y genera los nombres 
 python scripts/prep.py            # segunda pasada: aplica esos nombres
 ```
 
-## Publicar en GitHub Pages
-
-1. Sube el contenido de esta carpeta a un repositorio público. No hace falta subir `node_modules/`.
-2. En el repositorio, ve a *Settings → Pages → Source*: elige *Deploy from a branch*, la rama `main` y la carpeta `/ (root)`.
-3. Las URL quedan así:
-   - `https://<usuario>.github.io/<repo>/cartograma/`
-   - `https://<usuario>.github.io/<repo>/flowmap/`
-   - `https://<usuario>.github.io/<repo>/upset/`
-
 ## Licencias de los datos
 
 - Our World in Data: CC BY 4.0.
